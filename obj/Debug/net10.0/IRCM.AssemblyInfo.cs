@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("IRCM")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+74cca9005b68651527a2486ab22f69d960187284")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b66fb0e1effabc267b160a2125ede2aadd7ce4aa")]
 [assembly: System.Reflection.AssemblyProductAttribute("IRCM")]
 [assembly: System.Reflection.AssemblyTitleAttribute("IRCM")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
