@@ -93,6 +93,11 @@ builder.Services.AddScoped<IUserService, UserService>();
 
 builder.Services.AddScoped<JwtHelper>();
 
+builder.Services.AddScoped<
+    IPropertyService,
+    PropertyImplementation
+>();
+
 // =========================
 // CORS
 // =========================
