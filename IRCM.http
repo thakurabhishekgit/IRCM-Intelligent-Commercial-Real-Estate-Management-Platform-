@@ -1,0 +1,6 @@
+@IRCM_HostAddress = http://localhost:5282
+
+GET {{IRCM_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
