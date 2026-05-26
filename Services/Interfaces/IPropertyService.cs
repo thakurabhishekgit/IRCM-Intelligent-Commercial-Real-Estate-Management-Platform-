@@ -13,10 +13,22 @@ public interface IPropertyService
 
     Task<PropertyResponseDto?> GetPropertyByIdAsync(Guid id);
 
-    Task<PropertyResponseDto?> UpdatePropertyAsync(
-        Guid id,
+    Task<PropertyResponseDto?>
+    UpdatePropertyAsync(
+        Guid propertyId,
+        Guid loggedInUserId,
+        string role,
         UpdatePropertyDto dto
     );
 
     Task<bool> DeletePropertyAsync(Guid id);
+
+    Task<List<PropertyResponseDto>>
+        GetMyPropertiesAsync(Guid agentId);
+
+    Task<PropertyResponseDto?>
+        GetMyPropertyByIdAsync(
+            Guid propertyId,
+            Guid agentId
+        );
 }
