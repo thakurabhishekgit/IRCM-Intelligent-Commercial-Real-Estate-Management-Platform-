@@ -2,6 +2,8 @@ namespace IRCM.DTOs.Auth;
 
 public class AuthResponseDto
 {
+
+    public required string Token { get; set; }
     public Guid Id { get; set; }
 
     public string FullName { get; set; }

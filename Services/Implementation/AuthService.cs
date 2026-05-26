@@ -5,16 +5,22 @@ using IRCM.Models;
 using Microsoft.EntityFrameworkCore;
 using IRCM.DTOs.User;
 using IRCM.Enums;
+using IRCM.Helpers;
 namespace IRCM.Services.Implementation;
 
 public class AuthService : IAuthService
 {
     private readonly ApplicationDbContext _context;
+    private readonly JwtHelper _jwtHelper;
 
-    public AuthService(ApplicationDbContext context)
-    {
-        _context = context;
-    }
+    public AuthService(
+    ApplicationDbContext context,
+    JwtHelper jwtHelper
+)
+{
+    _context = context;
+    _jwtHelper = jwtHelper;
+}
 
     // REGISTER
 
@@ -27,7 +33,7 @@ public class AuthService : IAuthService
         {
             return null;
         }
-
+        
         var user = new User
         {
             FullName = dto.FullName,
@@ -36,20 +42,21 @@ public class AuthService : IAuthService
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
             Role = dto.Role ?? UserRole.Tenant
         };
-
+        var token = _jwtHelper.GenerateToken(user);
         await _context.Users.AddAsync(user);
 
         await _context.SaveChangesAsync();
 
         return new AuthResponseDto
-        {
-            Id = user.Id,
-            FullName = user.FullName,
-            Email = user.Email,
-            PhoneNumber = user.PhoneNumber,
-            Role = user.Role.ToString(),
-            CreatedAt = user.CreatedAt
-        };
+{
+    Id = user.Id,
+    FullName = user.FullName,
+    Email = user.Email,
+    PhoneNumber = user.PhoneNumber,
+    Role = user.Role.ToString(),
+    Token = token,
+    CreatedAt = user.CreatedAt
+};
     }
 
     // LOGIN
@@ -74,12 +81,15 @@ public class AuthService : IAuthService
             return null;
         }
 
+        var token = _jwtHelper.GenerateToken(user);
+
         return new AuthResponseDto
         {
             Id = user.Id,
             FullName = user.FullName,
             Email = user.Email,
             PhoneNumber = user.PhoneNumber,
+            Token = token,
             Role = user.Role.ToString(),
             CreatedAt = user.CreatedAt
         };
@@ -108,12 +118,15 @@ public class AuthService : IAuthService
 
         await _context.SaveChangesAsync();
 
+        var token = _jwtHelper.GenerateToken(user);
+
         return new AuthResponseDto
         {
             Id = user.Id,
             FullName = user.FullName,
             Email = user.Email,
             PhoneNumber = user.PhoneNumber,
+            Token = token,
             Role = user.Role.ToString(),
             CreatedAt = user.CreatedAt
         };

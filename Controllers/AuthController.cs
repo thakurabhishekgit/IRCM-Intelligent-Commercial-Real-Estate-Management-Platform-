@@ -1,6 +1,6 @@
 using IRCM.DTOs.Auth;
 using IRCM.Interfaces;
-// using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace IRCM.Controllers;
@@ -65,7 +65,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("create-agent-with-admin-role")]
-    // [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> CreateAgentWithAdminRole([FromBody] RegisterDto dto)
     {
         var user = await _authService.createAgentWithAdminRoleAsync(dto);
