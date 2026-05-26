@@ -85,7 +85,39 @@ public class AuthService : IAuthService
         };
     }
 
-    // GET ALL USERS
+    public async Task<AuthResponseDto?> createAgentWithAdminRoleAsync(RegisterDto dto)
+    {
+        var existingUser = await _context.Users
+            .FirstOrDefaultAsync(x => x.Email == dto.Email);
+
+        if (existingUser != null)
+        {
+            return null;
+        }
+
+        var user = new User
+        {
+            FullName = dto.FullName,
+            Email = dto.Email,
+            PhoneNumber = dto.PhoneNumber,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
+            Role = UserRole.Agent
+        };
+
+        await _context.Users.AddAsync(user);
+
+        await _context.SaveChangesAsync();
+
+        return new AuthResponseDto
+        {
+            Id = user.Id,
+            FullName = user.FullName,
+            Email = user.Email,
+            PhoneNumber = user.PhoneNumber,
+            Role = user.Role.ToString(),
+            CreatedAt = user.CreatedAt
+        };
+    }
 
    
 }

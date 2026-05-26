@@ -1,5 +1,6 @@
 using IRCM.DTOs.Auth;
 using IRCM.Interfaces;
+// using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace IRCM.Controllers;
@@ -63,10 +64,35 @@ public class AuthController : ControllerBase
         });
     }
 
-    // GET ALL USERS
+    [HttpPost("create-agent-with-admin-role")]
+    // [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> CreateAgentWithAdminRole([FromBody] RegisterDto dto)
+    {
+        var user = await _authService.createAgentWithAdminRoleAsync(dto);
 
+        if (user == null)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = "User already exists"
+            });
+        }
 
-    // GET USER BY ID
+        // if (user.Role != "Admin")
+        // {
+        //     return BadRequest(new
+        //     {
+        //         success = false,
+        //         message = "User role must be Admin"
+        //     });
+        // }
 
-  
+        return StatusCode(201, new
+        {
+            success = true,
+            message = "Agent created successfully",
+            data = user
+        });
+    }
 }
