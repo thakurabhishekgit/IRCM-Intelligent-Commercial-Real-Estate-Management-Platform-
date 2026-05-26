@@ -2,7 +2,7 @@ using IRCM.Enums;
 
 namespace IRCM.DTOs.User;
 
-public class UserResponseDto
+public class UpdateUserDtoRequest
 {
     public Guid Id { get; set; }
 
@@ -15,6 +15,4 @@ public class UserResponseDto
     public string Role { get; set; } = string.Empty;
 
     public DateTime CreatedAt { get; set; }
-
-    public DateTime UpdatedAt { get; set; }
 }
