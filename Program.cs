@@ -98,6 +98,11 @@ builder.Services.AddScoped<
     PropertyImplementation
 >();
 
+builder.Services.AddScoped<
+    ILeaseRequestService,
+    LeaseRequestImplementation
+>();
+
 // =========================
 // CORS
 // =========================
