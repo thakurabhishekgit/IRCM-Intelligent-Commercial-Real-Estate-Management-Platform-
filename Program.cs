@@ -1,6 +1,7 @@
 using System.Text;
 using FluentValidation;
 using FluentValidation.AspNetCore;
+using IRCM.Configurations;
 using IRCM.Data;
 using IRCM.Helpers;
 using IRCM.Interfaces;
@@ -103,6 +104,16 @@ builder.Services.AddScoped<
     LeaseRequestImplementation
 >();
 
+builder.Services.Configure<CloudinarySettings>(
+    builder.Configuration.GetSection(
+        "CloudinarySettings"
+    )
+);
+
+builder.Services.AddScoped<
+    IUploadService,
+    UploadService
+>();
 // =========================
 // CORS
 // =========================
