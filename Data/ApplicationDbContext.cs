@@ -177,5 +177,23 @@ public class ApplicationDbContext
             .OnDelete(
                 DeleteBehavior.Restrict
             );
+
+        modelBuilder.Entity<Lease>()
+            .HasIndex(x => x.AgentId);
+
+        modelBuilder.Entity<Lease>()
+            .HasIndex(x => x.TenantId);
+
+        modelBuilder.Entity<Lease>()
+            .HasIndex(x => x.PropertyId);
+
+        modelBuilder.Entity<LeaseRequest>()
+            .HasIndex(x => x.AgentId);
+
+        modelBuilder.Entity<LeaseRequest>()
+            .HasIndex(x => x.TenantId);
+
+        modelBuilder.Entity<LeaseRequest>()
+            .HasIndex(x => x.PropertyId);
     }
 }

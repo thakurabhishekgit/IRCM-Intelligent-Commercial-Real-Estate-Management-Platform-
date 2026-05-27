@@ -26,90 +26,125 @@ public class LeaseService
     // =========================
 
     public async Task<LeaseResponseDto?>
-        CreateLeaseAsync(
-            Guid agentId,
-            CreateLeaseDto dto
-        )
+    CreateLeaseAsync(
+        Guid agentId,
+        CreateLeaseDto dto
+    )
+{
+    // =========================
+    // GET LEASE REQUEST
+    // =========================
+
+    var leaseRequest =
+        await _context.LeaseRequests
+            .Include(x => x.Property)
+            .Include(x => x.Tenant)
+            .Include(x => x.Agent)
+
+            .FirstOrDefaultAsync(x =>
+                x.Id ==
+                    dto.LeaseRequestId &&
+                x.Status ==
+                    LeaseRequestStatus
+                        .Approved
+            );
+
+    if (leaseRequest == null)
     {
-        var leaseRequest =
-            await _context.LeaseRequests
-                .Include(x => x.Property)
-                .Include(x => x.Tenant)
-                .Include(x => x.Agent)
-
-                .FirstOrDefaultAsync(x =>
-                    x.Id ==
-                        dto.LeaseRequestId &&
-                    x.Status ==
-                        LeaseRequestStatus
-                            .Approved
-                );
-
-        if (leaseRequest == null)
-        {
-            return null;
-        }
-
-        if (
-            leaseRequest.AgentId !=
-            agentId
-        )
-        {
-            return null;
-        }
-
-        // Prevent duplicate active lease
-
-        var existingLease =
-            await _context.Leases
-                .FirstOrDefaultAsync(x =>
-                    x.PropertyId ==
-                        dto.PropertyId &&
-                    x.TenantId ==
-                        dto.TenantId &&
-                    x.Status ==
-                        LeaseStatus.Active
-                );
-
-        if (existingLease != null)
-        {
-            return null;
-        }
-
-        var lease = new Lease
-        {
-            PropertyId = dto.PropertyId,
-
-            TenantId = dto.TenantId,
-
-            AgentId = agentId,
-
-            LeaseRequestId =
-                dto.LeaseRequestId,
-
-            MonthlyRent =
-                dto.MonthlyRent,
-
-            SecurityDeposit =
-                dto.SecurityDeposit,
-
-            StartDate =
-                dto.StartDate,
-
-            EndDate =
-                dto.EndDate
-        };
-
-        await _context.Leases
-            .AddAsync(lease);
-
-        await _context.SaveChangesAsync();
-
-        return await MapLeaseResponse(
-            lease.Id
-        );
+        return null;
     }
 
+    // =========================
+    // OWNERSHIP VALIDATION
+    // =========================
+
+    if (
+        leaseRequest.AgentId !=
+        agentId
+    )
+    {
+        return null;
+    }
+
+    // =========================
+    // PREVENT DUPLICATE LEASE
+    // =========================
+
+    var existingLeaseFromRequest =
+        await _context.Leases
+            .FirstOrDefaultAsync(x =>
+                x.LeaseRequestId ==
+                    dto.LeaseRequestId
+            );
+
+    if (existingLeaseFromRequest != null)
+    {
+        return null;
+    }
+
+    // =========================
+    // PREVENT MULTIPLE ACTIVE
+    // =========================
+
+    var existingLease =
+        await _context.Leases
+            .FirstOrDefaultAsync(x =>
+                x.PropertyId ==
+                    dto.PropertyId &&
+                x.TenantId ==
+                    dto.TenantId &&
+                x.Status ==
+                    LeaseStatus.Active
+            );
+
+    if (existingLease != null)
+    {
+        return null;
+    }
+
+    // =========================
+    // CREATE LEASE
+    // =========================
+
+    var lease = new Lease
+    {
+        PropertyId =
+            dto.PropertyId,
+
+        TenantId =
+            dto.TenantId,
+
+        AgentId =
+            agentId,
+
+        LeaseRequestId =
+            dto.LeaseRequestId,
+
+        MonthlyRent =
+            dto.MonthlyRent,
+
+        SecurityDeposit =
+            dto.SecurityDeposit,
+
+        StartDate =
+            dto.StartDate,
+
+        EndDate =
+            dto.EndDate,
+
+        Status =
+            LeaseStatus.Pending
+    };
+
+    await _context.Leases
+        .AddAsync(lease);
+
+    await _context.SaveChangesAsync();
+
+    return await MapLeaseResponse(
+        lease.Id
+    );
+}
     // =========================
     // AGENT LEASES
     // =========================
@@ -273,128 +308,197 @@ public class LeaseService
     // =========================
 
     public async Task<LeaseResponseDto?>
-        UpdateLeaseStatusAsync(
-            Guid leaseId,
-            Guid agentId,
-            LeaseStatus status
-        )
+    UpdateLeaseStatusAsync(
+        Guid leaseId,
+        Guid agentId,
+        LeaseStatus status
+    )
+{
+    var lease =
+        await _context.Leases
+            .Include(x => x.Property)
+
+            .FirstOrDefaultAsync(x =>
+                x.Id == leaseId &&
+                x.AgentId == agentId
+            );
+
+    if (lease == null)
     {
-        var lease =
-            await _context.Leases
-                .FirstOrDefaultAsync(x =>
-                    x.Id == leaseId &&
-                    x.AgentId == agentId
-                );
+        return null;
+    }
 
-        if (lease == null)
-        {
-            return null;
-        }
+    // =========================
+    // STATUS TRANSITION RULES
+    // =========================
 
+    // Pending -> Active
+
+    if (
+        lease.Status ==
+            LeaseStatus.Pending &&
+        status ==
+            LeaseStatus.Active
+    )
+    {
         lease.Status = status;
 
-        lease.UpdatedAt =
-            DateTime.UtcNow;
+        // Occupancy increase here
 
-        await _context.SaveChangesAsync();
-
-        return await MapLeaseResponse(
-            lease.Id
-        );
+        lease.Property.OccupiedUnits += 1;
     }
+
+    // Active -> Expired
+
+    else if (
+        lease.Status ==
+            LeaseStatus.Active &&
+        status ==
+            LeaseStatus.Expired
+    )
+    {
+        lease.Status = status;
+
+        // Reduce occupancy
+
+        if (
+            lease.Property
+                .OccupiedUnits > 0
+        )
+        {
+            lease.Property
+                .OccupiedUnits -= 1;
+        }
+    }
+
+    // Active -> Terminated
+
+    else if (
+        lease.Status ==
+            LeaseStatus.Active &&
+        status ==
+            LeaseStatus.Terminated
+    )
+    {
+        lease.Status = status;
+
+        // Reduce occupancy
+
+        if (
+            lease.Property
+                .OccupiedUnits > 0
+        )
+        {
+            lease.Property
+                .OccupiedUnits -= 1;
+        }
+    }
+
+    else
+    {
+        // Invalid transition
+
+        return null;
+    }
+
+    lease.UpdatedAt =
+        DateTime.UtcNow;
+
+    await _context.SaveChangesAsync();
+
+    return await MapLeaseResponse(
+        lease.Id
+    );
+}
 
     // =========================
     // MAPPER
     // =========================
 
-    private async Task<
-        LeaseResponseDto?
-    >
+    private async Task<LeaseResponseDto?>
     MapLeaseResponse(Guid leaseId)
-    {
-        return await _context.Leases
-            .Include(x => x.Property)
-            .Include(x => x.Tenant)
-            .Include(x => x.Agent)
+{
+    return await _context.Leases
+        .Include(x => x.Property)
+        .Include(x => x.Tenant)
+        .Include(x => x.Agent)
 
-            .Select(x =>
-                new LeaseResponseDto
-                {
-                    Id = x.Id,
+        .Where(x => x.Id == leaseId)
 
-                    MonthlyRent =
-                        x.MonthlyRent,
+        .Select(x =>
+            new LeaseResponseDto
+            {
+                Id = x.Id,
 
-                    SecurityDeposit =
-                        x.SecurityDeposit,
+                MonthlyRent =
+                    x.MonthlyRent,
 
-                    StartDate =
-                        x.StartDate,
+                SecurityDeposit =
+                    x.SecurityDeposit,
 
-                    EndDate =
-                        x.EndDate,
+                StartDate =
+                    x.StartDate,
 
-                    Status =
-                        x.Status.ToString(),
+                EndDate =
+                    x.EndDate,
 
-                    CreatedAt =
-                        x.CreatedAt,
+                Status =
+                    x.Status.ToString(),
 
-                    Property =
-                        new PropertyDto
-                        {
-                            Id =
-                                x.Property.Id,
+                CreatedAt =
+                    x.CreatedAt,
 
-                            Title =
-                                x.Property.Title,
+                Property =
+                    new PropertyDto
+                    {
+                        Id =
+                            x.Property.Id,
 
-                            Location =
-                                x.Property
-                                    .Location,
+                        Title =
+                            x.Property.Title,
 
-                            Price =
-                                x.Property
-                                    .Price,
+                        Location =
+                            x.Property.Location,
 
-                            ThumbnailUrl =
-                                x.Property
-                                    .ThumbnailUrl
-                        },
+                        Price =
+                            x.Property.Price,
 
-                    Tenant =
-                        new TenantDto
-                        {
-                            Id =
-                                x.Tenant.Id,
+                        ThumbnailUrl =
+                            x.Property
+                                .ThumbnailUrl
+                    },
 
-                            FullName =
-                                x.Tenant
-                                    .FullName,
+                Tenant =
+                    new TenantDto
+                    {
+                        Id =
+                            x.Tenant.Id,
 
-                            Email =
-                                x.Tenant
-                                    .Email
-                        },
+                        FullName =
+                            x.Tenant
+                                .FullName,
 
-                    Agent =
-                        new AgentDto
-                        {
-                            Id =
-                                x.Agent.Id,
+                        Email =
+                            x.Tenant
+                                .Email
+                    },
 
-                            FullName =
-                                x.Agent
-                                    .FullName,
+                Agent =
+                    new AgentDto
+                    {
+                        Id =
+                            x.Agent.Id,
 
-                            Email =
-                                x.Agent
-                                    .Email
-                        }
-                }
-            )
-            .FirstOrDefaultAsync(x =>
-                x.Id == leaseId
-            );
-    }
+                        FullName =
+                            x.Agent
+                                .FullName,
+
+                        Email =
+                            x.Agent
+                                .Email
+                    }
+            }
+        )
+        .FirstOrDefaultAsync();
+}
 }
