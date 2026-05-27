@@ -196,4 +196,32 @@ public class LeaseRequestController : ControllerBase
             data = request
         });
     }
+
+    // =========================
+    // AGENT GET REQUESTS BY PROPERTY
+    // =========================
+
+    [Authorize(Roles = "Agent,Admin")]
+    [HttpGet("property/{propertyId}")]
+    public async Task<IActionResult>
+        GetRequestsByProperty(Guid propertyId)
+    {
+        var userId = User.FindFirstValue(
+            ClaimTypes.NameIdentifier
+        );
+
+        var requests =
+            await _leaseRequestService
+                .GetRequestsByPropertyAsync(
+                    propertyId,
+                    Guid.Parse(userId!)
+                );
+
+        return Ok(new
+        {
+            success = true,
+            count = requests.Count,
+            data = requests
+        });
+    }
 }
