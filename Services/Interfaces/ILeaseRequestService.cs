@@ -23,4 +23,10 @@ public interface ILeaseRequestService
             Guid agentId,
             LeaseRequestStatus status
         );
+
+    Task<List<LeaseRequestResponseDto>>
+    GetRequestsByPropertyAsync(
+        Guid propertyId,
+        Guid agentId
+    );
 }

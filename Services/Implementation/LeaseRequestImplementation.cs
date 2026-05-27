@@ -355,4 +355,82 @@ public class LeaseRequestImplementation
             }
         };
     }
+
+    public async Task<
+    List<LeaseRequestResponseDto>
+        >
+    GetRequestsByPropertyAsync(
+        Guid propertyId,
+        Guid agentId
+    )
+    {
+        return await _context.LeaseRequests
+            .Include(x => x.Property)
+            .Include(x => x.Tenant)
+            .Include(x => x.Agent)
+
+            .Where(x =>
+                x.PropertyId == propertyId &&
+                x.AgentId == agentId
+            )
+
+            .Select(x =>
+                new LeaseRequestResponseDto
+                {
+                    Id = x.Id,
+
+                    Message = x.Message,
+
+                    Status =
+                        x.Status.ToString(),
+
+                    RequestedAt =
+                        x.RequestedAt,
+
+                    ReviewedAt =
+                        x.ReviewedAt,
+
+                    Property = new PropertyDto
+                    {
+                        Id = x.Property.Id,
+
+                        Title =
+                            x.Property.Title,
+
+                        Location =
+                            x.Property.Location,
+
+                        Price =
+                            x.Property.Price,
+
+                        ThumbnailUrl =
+                            x.Property
+                                .ThumbnailUrl
+                    },
+
+                    Tenant = new TenantDto
+                    {
+                        Id = x.Tenant.Id,
+
+                        FullName =
+                            x.Tenant.FullName,
+
+                        Email =
+                            x.Tenant.Email
+                    },
+
+                    Agent = new AgentDto
+                    {
+                        Id = x.Agent.Id,
+
+                        FullName =
+                            x.Agent.FullName,
+
+                        Email =
+                            x.Agent.Email
+                    }
+                }
+            )
+            .ToListAsync();
+    }
 }
