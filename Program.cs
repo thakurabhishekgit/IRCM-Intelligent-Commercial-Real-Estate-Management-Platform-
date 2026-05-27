@@ -114,6 +114,13 @@ builder.Services.AddScoped<
     IUploadService,
     UploadService
 >();
+
+builder.Services.AddScoped<
+    ILeaseService,
+    LeaseService
+>();
+
+
 // =========================
 // CORS
 // =========================

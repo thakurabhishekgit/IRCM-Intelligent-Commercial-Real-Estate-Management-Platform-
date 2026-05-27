@@ -1,5 +1,5 @@
 using System.Security.Claims;
-using IRCM.DTOs.LeaseRequest;
+using IRCM.DTOs.Lease;
 using IRCM.Enums;
 using IRCM.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -8,211 +8,175 @@ using Microsoft.AspNetCore.Mvc;
 namespace IRCM.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
-public class LeaseRequestController : ControllerBase
+[Route("api/lease")]
+public class LeaseController
+    : ControllerBase
 {
-    private readonly ILeaseRequestService
-        _leaseRequestService;
+    private readonly ILeaseService
+        _leaseService;
 
-    public LeaseRequestController(
-        ILeaseRequestService leaseRequestService
+    public LeaseController(
+        ILeaseService leaseService
     )
     {
-        _leaseRequestService =
-            leaseRequestService;
+        _leaseService = leaseService;
     }
 
     // =========================
-    // TENANT SEND REQUEST
+    // CREATE LEASE
+    // =========================
+
+    [Authorize(Roles = "Agent,Admin")]
+    [HttpPost]
+    public async Task<IActionResult>
+        CreateLease(CreateLeaseDto dto)
+    {
+        var userId = User.FindFirstValue(
+            ClaimTypes.NameIdentifier
+        );
+
+        var lease =
+            await _leaseService
+                .CreateLeaseAsync(
+                    Guid.Parse(userId!),
+                    dto
+                );
+
+        if (lease == null)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message =
+                    "Lease creation failed"
+            });
+        }
+
+        return Ok(new
+        {
+            success = true,
+            message =
+                "Lease created successfully",
+            data = lease
+        });
+    }
+
+    // =========================
+    // AGENT LEASES
+    // =========================
+
+    [Authorize(Roles = "Agent,Admin")]
+    [HttpGet("agent")]
+    public async Task<IActionResult>
+        GetAgentLeases()
+    {
+        var userId = User.FindFirstValue(
+            ClaimTypes.NameIdentifier
+        );
+
+        var leases =
+            await _leaseService
+                .GetAgentLeasesAsync(
+                    Guid.Parse(userId!)
+                );
+
+        return Ok(new
+        {
+            success = true,
+            count = leases.Count,
+            data = leases
+        });
+    }
+
+    // =========================
+    // TENANT LEASES
     // =========================
 
     [Authorize(Roles = "Tenant")]
-    [HttpPost]
+    [HttpGet("my-leases")]
     public async Task<IActionResult>
-        CreateLeaseRequest(
-            CreateLeaseRequestDto dto
+        GetTenantLeases()
+    {
+        var userId = User.FindFirstValue(
+            ClaimTypes.NameIdentifier
+        );
+
+        var leases =
+            await _leaseService
+                .GetTenantLeasesAsync(
+                    Guid.Parse(userId!)
+                );
+
+        return Ok(new
+        {
+            success = true,
+            count = leases.Count,
+            data = leases
+        });
+    }
+
+    // =========================
+    // LEASE BY ID
+    // =========================
+
+    [Authorize]
+    [HttpGet("{id}")]
+    public async Task<IActionResult>
+        GetLeaseById(Guid id)
+    {
+        var userId = User.FindFirstValue(
+            ClaimTypes.NameIdentifier
+        );
+
+        var role = User.FindFirstValue(
+            ClaimTypes.Role
+        );
+
+        var lease =
+            await _leaseService
+                .GetLeaseByIdAsync(
+                    id,
+                    Guid.Parse(userId!),
+                    role!
+                );
+
+        if (lease == null)
+        {
+            return NotFound(new
+            {
+                success = false,
+                message =
+                    "Lease not found"
+            });
+        }
+
+        return Ok(new
+        {
+            success = true,
+            data = lease
+        });
+    }
+
+    // =========================
+    // PROPERTY LEASES
+    // =========================
+
+    [Authorize(Roles = "Agent,Admin")]
+    [HttpGet(
+        "property/{propertyId}"
+    )]
+    public async Task<IActionResult>
+        GetPropertyLeases(
+            Guid propertyId
         )
     {
         var userId = User.FindFirstValue(
             ClaimTypes.NameIdentifier
         );
 
-        var request =
-            await _leaseRequestService
-                .CreateLeaseRequestAsync(
-                    Guid.Parse(userId!),
-                    dto
-                );
-
-        if (request == null)
-        {
-            return BadRequest(new
-            {
-                success = false,
-                message =
-                    "Invalid request or duplicate request"
-            });
-        }
-
-        return StatusCode(201, new
-        {
-            success = true,
-            message =
-                "Lease request sent successfully",
-            data = request
-        });
-    }
-
-    // =========================
-    // TENANT GET OWN REQUESTS
-    // =========================
-
-    [Authorize(Roles = "Tenant")]
-    [HttpGet("my-requests")]
-    public async Task<IActionResult>
-        GetMyLeaseRequests()
-    {
-        var userId = User.FindFirstValue(
-            ClaimTypes.NameIdentifier
-        );
-
-        var requests =
-            await _leaseRequestService
-                .GetMyLeaseRequestsAsync(
-                    Guid.Parse(userId!)
-                );
-
-        return Ok(new
-        {
-            success = true,
-            count = requests.Count,
-            data = requests
-        });
-    }
-
-    // =========================
-    // AGENT GET REQUESTS
-    // =========================
-
-    [Authorize(Roles = "Agent,Admin")]
-    [HttpGet("agent")]
-    public async Task<IActionResult>
-        GetAgentLeaseRequests()
-    {
-        var userId = User.FindFirstValue(
-            ClaimTypes.NameIdentifier
-        );
-
-        var requests =
-            await _leaseRequestService
-                .GetAgentLeaseRequestsAsync(
-                    Guid.Parse(userId!)
-                );
-
-        return Ok(new
-        {
-            success = true,
-            count = requests.Count,
-            data = requests
-        });
-    }
-
-    // =========================
-    // APPROVE REQUEST
-    // =========================
-
-    [Authorize(Roles = "Agent,Admin")]
-    [HttpPut("{id}/approve")]
-    public async Task<IActionResult>
-        ApproveLeaseRequest(Guid id)
-    {
-        var userId = User.FindFirstValue(
-            ClaimTypes.NameIdentifier
-        );
-
-        var request =
-            await _leaseRequestService
-                .UpdateLeaseRequestStatusAsync(
-                    id,
-                    Guid.Parse(userId!),
-                    LeaseRequestStatus.Approved
-                );
-
-        if (request == null)
-        {
-            return NotFound(new
-            {
-                success = false,
-                message =
-                    "Lease request not found or unauthorized"
-            });
-        }
-
-        return Ok(new
-        {
-            success = true,
-            message =
-                "Lease request approved successfully",
-            data = request
-        });
-    }
-
-    // =========================
-    // REJECT REQUEST
-    // =========================
-
-    [Authorize(Roles = "Agent,Admin")]
-    [HttpPut("{id}/reject")]
-    public async Task<IActionResult>
-        RejectLeaseRequest(Guid id)
-    {
-        var userId = User.FindFirstValue(
-            ClaimTypes.NameIdentifier
-        );
-
-        var request =
-            await _leaseRequestService
-                .UpdateLeaseRequestStatusAsync(
-                    id,
-                    Guid.Parse(userId!),
-                    LeaseRequestStatus.Rejected
-                );
-
-        if (request == null)
-        {
-            return NotFound(new
-            {
-                success = false,
-                message =
-                    "Lease request not found or unauthorized"
-            });
-        }
-
-        return Ok(new
-        {
-            success = true,
-            message =
-                "Lease request rejected successfully",
-            data = request
-        });
-    }
-
-    // =========================
-    // AGENT GET REQUESTS BY PROPERTY
-    // =========================
-
-    [Authorize(Roles = "Agent,Admin")]
-    [HttpGet("property/{propertyId}")]
-    public async Task<IActionResult>
-        GetRequestsByProperty(Guid propertyId)
-    {
-        var userId = User.FindFirstValue(
-            ClaimTypes.NameIdentifier
-        );
-
-        var requests =
-            await _leaseRequestService
-                .GetRequestsByPropertyAsync(
+        var leases =
+            await _leaseService
+                .GetPropertyLeasesAsync(
                     propertyId,
                     Guid.Parse(userId!)
                 );
@@ -220,8 +184,94 @@ public class LeaseRequestController : ControllerBase
         return Ok(new
         {
             success = true,
-            count = requests.Count,
-            data = requests
+            count = leases.Count,
+            data = leases
+        });
+    }
+
+    // =========================
+    // ACTIVATE
+    // =========================
+
+    [Authorize(Roles = "Agent,Admin")]
+    [HttpPut("{id}/activate")]
+    public async Task<IActionResult>
+        ActivateLease(Guid id)
+    {
+        return await UpdateStatus(
+            id,
+            LeaseStatus.Active
+        );
+    }
+
+    // =========================
+    // EXPIRE
+    // =========================
+
+    [Authorize(Roles = "Agent,Admin")]
+    [HttpPut("{id}/expire")]
+    public async Task<IActionResult>
+        ExpireLease(Guid id)
+    {
+        return await UpdateStatus(
+            id,
+            LeaseStatus.Expired
+        );
+    }
+
+    // =========================
+    // TERMINATE
+    // =========================
+
+    [Authorize(Roles = "Agent,Admin")]
+    [HttpPut("{id}/terminate")]
+    public async Task<IActionResult>
+        TerminateLease(Guid id)
+    {
+        return await UpdateStatus(
+            id,
+            LeaseStatus.Terminated
+        );
+    }
+
+    // =========================
+    // COMMON STATUS METHOD
+    // =========================
+
+    private async Task<IActionResult>
+        UpdateStatus(
+            Guid leaseId,
+            LeaseStatus status
+        )
+    {
+        var userId = User.FindFirstValue(
+            ClaimTypes.NameIdentifier
+        );
+
+        var lease =
+            await _leaseService
+                .UpdateLeaseStatusAsync(
+                    leaseId,
+                    Guid.Parse(userId!),
+                    status
+                );
+
+        if (lease == null)
+        {
+            return NotFound(new
+            {
+                success = false,
+                message =
+                    "Lease not found"
+            });
+        }
+
+        return Ok(new
+        {
+            success = true,
+            message =
+                $"Lease marked as {status}",
+            data = lease
         });
     }
 }
